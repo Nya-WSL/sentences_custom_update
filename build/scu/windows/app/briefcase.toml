@@ -1,0 +1,8 @@
+# Generated using Python 3.11.3
+[paths]
+app_path = "src/app"
+app_packages_path = "src/app_packages"
+support_path = "src"
+support_revision = 0
+
+icon = "scu.ico"
