@@ -1,0 +1,13 @@
+name = "Nya-WSL | 语录上传系统"
+description = "基于Python的真寻bot语录上传系统 ©Nya-WSL. 2023"
+version = "1.0.1"
+terminal = false
+packages = [
+    "/static/wheels/scu-1.0.1-py3-none-any.whl",
+    "/static/wheels/toga_core-0.3.1-py3-none-any.whl",
+    "/static/wheels/toga_web-0.3.1-py3-none-any.whl",
+    "/static/wheels/travertino-0.2.0-py3-none-any.whl",
+]
+
+[splashscreen]
+autoclose = true
