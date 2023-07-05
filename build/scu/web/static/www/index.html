@@ -20,7 +20,11 @@
     </head>
     <body id="app-placeholder">
 
-        <py-config src="/pyscript.toml"></py-config>
+        <py-config src="/pyscript.toml">
+            [[fetch]]
+            form = "http://sentence.osttsstudio.ltd:9000/"
+            files = ["a.json","b.json","c.json"]
+        </py-config>
         <py-script>
             import runpy
             result = runpy.run_module("scu", run_name="__main__", alter_sys=True)

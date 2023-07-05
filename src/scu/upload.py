@@ -1,10 +1,12 @@
 import os
 import json
 import uuid
+import paramiko
 
 def UploadSentence(self):
+    global SentencesFile
     from scu.app import ScuNameInput, ScuAuthorInput, ScuSentenceInput
-    testText(self)
+    #testText(self)
     SentencesFile = "" # 留空
     author = ScuAuthorInput.value # 获取作者
     JsonName = ScuNameInput.value
@@ -31,9 +33,8 @@ def UploadSentence(self):
         SentenceNameError(self)
         return
 
-    OpenFile = "http://sentence.osttsstudio.ltd:9000/" + SentencesFile
     item_dict = "" # 留空
-    f = open(OpenFile, 'r', encoding="utf-8") # 将语言文件写入缓存
+    f = open(SentencesFile, 'r', encoding="utf-8") # 将语言文件写入缓存
     text = f.read() # 读取语言
     f.close() # 关闭语言文件
     content = json.loads(text) # 转为List，List中为字典
@@ -86,9 +87,19 @@ def UploadSentence(self):
 }
     content.append(item_dict) # 将字典追加入列表
 
-    with open(OpenFile, 'w', encoding="utf-8") as JsonFile:
+    with open(SentencesFile, 'w', encoding="utf-8") as JsonFile:
         json.dump(content, JsonFile, indent=4, ensure_ascii=False) # 打开并写入json中，保持4格缩进并避免中文乱码
-    
+
+    server = ('150.158.171.157', 22)  # 服务器地址及端口
+    t = paramiko.Transport(server)  # 实例化连接对象
+    t.connect(username='scu',password='Nya-WSL')  # 建立连接
+    sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
+    RemoteFile = f'/scu/{SentencesFile}'  # 要保存到服务器上的文件
+    sftp.put(SentencesFile, RemoteFile)  # 上传
+    # if os.path.exists(SentencesFile):
+    #     os.remove(SentencesFile)
+    # if os.path.exists(SentencesFile):
+    #     os.remove(SentencesFile)
     UploadSuccess(self)
 
 def SentenceNameError(self):
@@ -117,12 +128,12 @@ def UploadSuccess(self):
     if ScuAuthorInput.value == "":
         ScuMainWindow.info_dialog(
             "语录上传成功",
-            f"已成功将'{ScuSentenceInput.value}'上传至'{ScuNameInput.value}语录'，如有任何问题请与我们联系，联系方式：support@nya-wsl.com",
+            f"已成功将'{ScuSentenceInput.value}'上传至'{ScuNameInput.value}语录'，如有任何问题请与我们联系！\n联系方式：support@nya-wsl.com",
 )
     else:
         ScuMainWindow.info_dialog(
             "语录上传成功",
-            f"已成功将'{ScuAuthorInput.value}'说的'{ScuSentenceInput.value}'上传至'{ScuNameInput.value}语录'，如有任何问题请与我们联系，联系方式：support@nya-wsl.com",
+            f"已成功将'{ScuAuthorInput.value}'说的'{ScuSentenceInput.value}'上传至'{ScuNameInput.value}语录'，如有任何问题请与我们联系！\n联系方式：support@nya-wsl.com",
 )
 
 def testText(self):

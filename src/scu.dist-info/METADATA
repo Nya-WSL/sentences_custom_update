@@ -1,0 +1,11 @@
+Metadata-Version: 2.1
+Briefcase-Version: 0.3.14
+Name: scu
+Formal-Name: scu
+App-ID: com.nya-wsl.scu
+Version: 0.0.1
+Home-page: https://nya-wsl.com/scu
+Download-URL: https://nya-wsl.com/scu
+Author: Nya-WSL
+Author-email: support@nya-wsl.com
+Summary: 基于Python的真寻bot语录上传系统

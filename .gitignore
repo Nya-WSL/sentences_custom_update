@@ -167,20 +167,4 @@ logs/
 **/*.log
 
 tests/
-build/scu/android/gradle/*.bat
-build/scu/android/gradle/gradlew
-build/scu/android/gradle/.gitignore
-build/scu/android/gradle/b*
-build/scu/android/gradle/s*
-build/scu/android/gradle/app/*.pro
-build/scu/android/gradle/app/build/
-build/scu/android/gradle/app/src/main/java/
-build/scu/android/gradle/app/src/main/python*
-build/scu/android/gradle/app/src/main/res/d*
-build/scu/android/gradle/app/src/main/res/layout
-build/scu/android/gradle/app/src/main/res/m*
-build/scu/android/gradle/app/src/main/res/xml/
-build/scu/android/gradle/.gradle/
-build/scu/android/gradle/gradle/
-build/scu/windows/app/src/
 build/scu/web/static/app/
