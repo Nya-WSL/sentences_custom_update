@@ -3,7 +3,7 @@ Author: Nya-WSL
 Copyright © 2023 by Nya-WSL All Rights Reserved. 
 Date: 2023-08-30 00:47:09
 LastEditors: 狐日泽
-LastEditTime: 2023-10-29 05:08:45
+LastEditTime: 2023-10-29 06:06:19
 '''
 
 import os
@@ -53,7 +53,7 @@ usage：
 """.strip()
 __plugin_des__ = "上传语录"
 __plugin_cmd__ = ["上传语录"]
-__plugin_version__ = "1.1.3"
+__plugin_version__ = "1.2.0"
 __plugin_author__ = "Nya-WSL"
 __plugin_settings__ = {
     "level": 5,
@@ -134,7 +134,7 @@ async def _(arg: Message = CommandArg()):
     hitokoto = re.sub("语录", "", msg[0])
     for key,value in HitokotoList.items():
         if hitokoto == key:
-            SentencesFile = path + f'{value["path"]}.json'
+            SentencesFile = path + f'{value[1]}.json'
         elif hitokoto == "楠桐":
             SentencesFile = path + "c.json"
             if len(msg) < 2:
@@ -233,7 +233,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
     hitokoto = re.sub("语录", "", msg[0])
     for key,value in HitokotoList.items():
         if hitokoto == key:
-            SentencesFile = path + f'{value["path"]}.json'
+            SentencesFile = path + f'{value[1]}.json'
         elif hitokoto == "楠桐":
             SentencesFile = path + "c.json"
         else:
@@ -276,7 +276,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
     hitokoto = re.sub("语录", "", msg[0])
     for key,value in HitokotoList.items():
         if hitokoto == key:
-            SentencesFile = path + f'{value["path"]}.json'
+            SentencesFile = path + f'{value[1]}.json'
         elif hitokoto == "楠桐":
             SentencesFile = path + "c.json"
         else:
@@ -318,6 +318,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
     global SentenceName
     global sentence
     global author
+    global msg
     with open(UserDictPath, "r", encoding="utf-8") as ud:
         UserDict = json.load(ud)
     with open(BlackListPath, "r", encoding="utf-8") as blp:
@@ -444,8 +445,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
             if SentenceName in hitokoto:
                 for key,value in HitokotoList.items():
                     if SentenceName == key:
-                        AuthorOrigin: dict = str(HitokotoList[key]).replace(r', "path": "[a-z]"', "")
-                        author = AuthorOrigin["author"]
+                        author = value[0]
             result = f'已成功将{author}说的{sentence}上传至{SentenceName}语录'
             with open(BlackListPath, "r", encoding="utf-8") as blp:
                 BlackList = json.load(blp)
@@ -491,22 +491,17 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
             except:
                 await UploadSentence.finish("作者获取异常！")
 
-        if SentenceName in ["桑吉","羽月","楠桐","小晨","语录","桑吉语录","羽月语录","楠桐语录","小晨语录","语录合集"]:
-            if SentenceName in ["楠桐","楠桐语录","语录","语录合集"]:
-                if SentenceName in ["楠桐","语录"]:
-                    result = f'已成功将{author}说的{sentence}上传至{SentenceName}语录'
-                else:
-                    result = f'已成功将{author}说的{sentence}上传至{SentenceName}'
-                with open(BlackListPath, "r", encoding="utf-8") as blp:
-                    BlackList = json.load(blp)
-                if author in BlackList:
-                    result = f"{author}已被管理员封禁！"
-                    await UploadSentence.finish(result)
-            else:
-                if SentenceName in ["桑吉","羽月","小晨"]:
-                    result = f'已成功将{sentence}上传至{SentenceName}语录'
-                else:
-                    result = f'已成功将{sentence}上传至{SentenceName}'
+        if SentenceName in hitokoto or SentenceName == "楠桐":
+            if SentenceName in hitokoto:
+                for key,value in HitokotoList.items():
+                    if SentenceName == key:
+                        author = value[0]
+            result = f'已成功将{author}说的{sentence}上传至{SentenceName}语录'
+            with open(BlackListPath, "r", encoding="utf-8") as blp:
+                BlackList = json.load(blp)
+            if author in BlackList:
+                result = f"{author}已被管理员封禁！"
+                await UploadSentence.finish(result)
         else:
             await UploadSentence.finish("该语录不存在！")
 
@@ -581,17 +576,15 @@ def Upload():
     global id
     path = "/scu/" # 语录的路径
     SentencesFile = "" # 留空
-
-    if SentenceName in ["桑吉","桑吉语录"]:
-        SentencesFile = path + "a.json" # 语录文件
-    elif SentenceName in ["羽月","羽月语录"]:
-        SentencesFile = path + "b.json"
-    elif SentenceName in ["楠桐","楠桐语录"]:
-        SentencesFile = path + "c.json"
-    elif SentenceName in ["小晨","小晨语录"]:
-        SentencesFile = path + "d.json"
-    elif SentenceName in ["语录","语录合集"]:
-        SentencesFile = path + "e.json"
+    with open(HitokotoListPath, "r", encoding="utf-8") as hlp:
+        HitokotoList =json.load(hlp)
+    hitokoto = re.sub("语录", "", msg[0])
+    for key,value in HitokotoList.items():
+        if hitokoto == key:
+            SentencesFile = path + f'{value[1]}.json'
+            author = value[0]
+        elif hitokoto == "楠桐":
+            SentencesFile = path + "c.json"
     else:
         UploadSentence.finish("该语录不存在！")
 
@@ -610,30 +603,15 @@ def Upload():
     "uuid": f"{Uuid}", # 新的uuid，通过此方式写入双引号
     "hitokoto": f"{sentence}", # 需要添加的语录将填入这里，通过此方式写入双引号
     "type": "a",
-    "from": "资本家聚集地",
-    "from_who": "桑吉Sage",
-    "creator": "桑吉Sage",
+    "from": f"{author[0]}",
+    "from_who": f"{author[0]}",
+    "creator": f"{author[0]}",
     "creator_uid": "1",
     "reviewer": "1",
     "commit_from": "web",
     "created_at": "1626590063",
     "length": "19"
 } # 需添加的对象
-    elif SentenceName in ["羽月","羽月语录"]:
-        item_dict = {
-    "id": f"{id}",
-    "uuid": f"{Uuid}",
-    "hitokoto": f"{sentence}",
-    "type": "b",
-    "from": "羽月ちい",
-    "from_who": "羽月ちい",
-    "creator": "羽月ちい",
-    "creator_uid": "1",
-    "reviewer": "1",
-    "commit_from": "web",
-    "created_at": "1626590063",
-    "length": "19"
-}
     elif SentenceName in ["楠桐","楠桐语录"]:
         item_dict = {
     "id": f"{id}",
@@ -649,36 +627,7 @@ def Upload():
     "created_at": "1626590063",
     "length": "19"
 }
-    elif SentenceName in ["小晨","小晨语录"]:
-        item_dict = {
-    "id": f"{id}",
-    "uuid": f"{Uuid}",
-    "hitokoto": f"{sentence}",
-    "type": "d",
-    "from": "晨于曦Asahi",
-    "from_who": "晨于曦Asahi",
-    "creator": "晨于曦Asahi",
-    "creator_uid": "1",
-    "reviewer": "1",
-    "commit_from": "web",
-    "created_at": "1626590063",
-    "length": "19"
-}
-    elif SentenceName in ["语录","语录合集"]:
-        item_dict = {
-    "id": f"{id}",
-    "uuid": f"{Uuid}",
-    "hitokoto": f"{sentence}",
-    "type": "e",
-    "from": f"{author}", # 填入作者，通过此方式写入双引号
-    "from_who": f"{author}",
-    "creator": f"{author}",
-    "creator_uid": "1",
-    "reviewer": "1",
-    "commit_from": "web",
-    "created_at": "1626590063",
-    "length": "19"
-}
+
     content.append(item_dict) # 将字典追加入列表
 
     with open(SentencesFile, 'w', encoding="utf-8") as JsonFile:
