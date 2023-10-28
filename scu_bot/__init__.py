@@ -3,7 +3,7 @@ Author: Nya-WSL
 Copyright © 2023 by Nya-WSL All Rights Reserved. 
 Date: 2023-08-30 00:47:09
 LastEditors: 狐日泽
-LastEditTime: 2023-10-21 00:52:39
+LastEditTime: 2023-10-29 04:09:25
 '''
 
 import os
@@ -15,14 +15,13 @@ import datetime
 from nonebot import on_command
 from services.log import logger
 from configs.config import Config
-from nonebot.typing import T_State
 from nonebot.params import CommandArg
 from utils.message_builder import image
 from utils.utils import get_message_img, get_message_text
 from utils.http_utils import AsyncHttpx
 from configs.path_config import DATA_PATH, IMAGE_PATH
 from models.level_user import LevelUser
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, GroupMessageEvent
+from nonebot.adapters.onebot.v11 import Message, MessageEvent, GroupMessageEvent
 
 __zx_plugin_name__ = "上传语录"
 __plugin_usage__ = """
@@ -101,6 +100,12 @@ ScuDataPath = DATA_PATH / "scu"
 ScuImagePath = IMAGE_PATH / "scu"
 UserDictPath = ScuDataPath / "user_dict.json"
 BlackListPath = ScuDataPath / "blacklist.json"
+HitokotoListOrigin = "custom_plugins/scu_bot/hitokoto_list.json"
+if os.path.exists(UserDictPath):
+    os.system(f"cp -rf  {ScuDataPath}")
+else:
+    print(f"ERROR: can't find {HitokotoListOrigin}!")
+HitokotoListPath = ScuDataPath / "hitokoto_list.json"
 
 UploadSentence = on_command("上传语录", aliases={"上传语录"}, priority=5, block=True)
 up_img = on_command("上传图片", aliases={"上传图片"}, priority=5, block=True)
@@ -118,28 +123,24 @@ if not os.path.exists(BlackListPath):
         blp.write(r"[]")
 
 @ExtractSentnces.handle()
-async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+async def _(arg: Message = CommandArg()):
+    with open(HitokotoListPath, "r", encoding="utf-8") as hlp:
+        HitokotoList =json.load(hlp)
     msg = arg.extract_plain_text().strip().split()
     if len(msg) < 1:
         await ExtractSentnces.finish("请选择语录！")
     path = "/scu/"
     SentencesFile = ""
-    if msg[0] in ["桑吉","桑吉语录"]:
-        SentencesFile = path + "a.json"
-    elif msg[0] in ["羽月","羽月语录"]:
-        SentencesFile = path + "b.json"
-    elif msg[0] in ["楠桐","楠桐语录"]:
-        SentencesFile = path + "c.json"
-        if len(msg) < 2:
-            await ExtractSentnces.finish("请选择作者！")
-    elif msg[0] in ["小晨","小晨语录"]:
-        SentencesFile = path + "d.json"
-    elif msg[0] in ["语录","语录合集"]:
-        SentencesFile = path + "e.json"
-        if len(msg) < 2:
-            await ExtractSentnces.finish("请选择作者！")
-    else:
-        await RevokeSentence.finish("提取的语录不存在！")
+    hotokoto = re.sub("语录", msg[0])
+    for key,value in HitokotoList:
+        if hotokoto == key:
+            SentencesFile = path + f'{value[path]}.json'
+        elif hotokoto == "楠桐":
+            SentencesFile = path + "c.json"
+            if len(msg) < 2:
+                await ExtractSentnces.finish("请选择作者！")
+        else:
+            await RevokeSentence.finish("提取的语录不存在！")
     f = open(SentencesFile, 'r', encoding="utf-8") # 将语言文件写入缓存
     sf = f.read() # 读取语言
     f.close() # 关闭语言文件
@@ -163,7 +164,7 @@ async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
         with open(FilePath, "w", encoding="utf-8") as f:
             json.dump(ExtractList, f, ensure_ascii=False, indent=0)
         if os.path.exists(FilePath):
-            result = f"""提取{msg[0]}中的{author}完成！
+            result = f"""提取{hotokoto}语录中的{author}完成！
 
 下载地址：
 https://cloud.nya-wsl.cn/pd/bot/extract_{author}_{time}.json
