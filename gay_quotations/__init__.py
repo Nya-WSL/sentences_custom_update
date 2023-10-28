@@ -30,6 +30,9 @@ usage：
         楠桐语录 ["查询","查询语录","语录查询"]
         楠桐语录 ["查询","查询语录","语录查询"] 显示/隐藏总数 | 显示/隐藏统计 | 显示/隐藏占比 | 显示/隐藏卡池
         楠桐语录 ["图片","图","截图"]
+        楠桐语录 稀有度 查询
+        楠桐语录稀有度 ssr/SSR 百分比(浮点数) | 楠桐语录 稀有度 角色 ssr/SSR
+        例：楠桐语录稀有度 ssr 2.0 | 楠桐语录稀有度 晨于曦Asahi ssr
 
     累计抽卡数统计时间从2023.7.29 15:00开始
 
@@ -56,6 +59,18 @@ __plugin_configs__ = {
         "default_value": 5,
         "type": int,
     },
+    "SCU_CHANGE_CARD_PERCENT": {
+        "value": 6,
+        "help": "群内调整卡池百分比需要的权限",
+        "default_value": 6,
+        "type": int,
+    },
+    "SCU_CHANGE_CARD_USER": {
+        "value": 6,
+        "help": "群内调整角色卡池需要的权限",
+        "default_value": 6,
+        "type": int,
+    }
 }
 __plugin_cd_limit__ = {
     "cd": 10,                # 限制 cd 时长
@@ -73,19 +88,32 @@ CheckUrl = "http://sentence.osttsstudio.ltd:9000/c.json"
 ScuDataPath = DATA_PATH / "scu"
 ScuImagePath = IMAGE_PATH / "scu"
 ScuImageGayPath = ScuImagePath / "gay"
+MainConfigPath = ScuDataPath / "config.yml"
 CardCountPath = ScuDataPath / "card_count.json"
-MainConfigPath = ScuDataPath / "max_draw.json"
+CardDictPath = ScuDataPath / "card_dict.json"
+UserDictPath = ScuDataPath / "user_dict.json"
 
-if not os.path.exists("custom_plugins/gay_quotations/config.yml"):
+if not os.path.exists(UserDictPath):
+    with open(UserDictPath, "w", encoding="utf-8") as ud:
+        ud.write(r"{}")
+
+if not os.path.exists(MainConfigPath):
     config = """
+percent:
+  r: '25.0'
+  sr: '10.0'
+  ssr: '2.0'
 show:
   card_all: true
   list: true
   percent: true
   cardpool: true
 """
-    with open("custom_plugins/gay_quotations/config.yml", "w", encoding="utf-8") as f:
-        yaml.dump(yaml.load(config), f)
+    with open(MainConfigPath, "w", encoding="utf-8") as f:
+        yaml.dump(yaml.load(config, Loader=yaml.FullLoader), f)
+if not os.path.exists(CardDictPath):
+    with open(CardDictPath, "w", encoding="utf-8") as f:
+        f.write(r"{}")
 count = {
     "n": 0,
     "r": 0,
@@ -101,7 +129,9 @@ if not CardCountPath.exists():
         json.dump(count, cc, ensure_ascii=False)
 
 @quotations.handle()
-async def _(event: MessageEvent, arg: Message = CommandArg()):
+async def _(bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+    with open(UserDictPath, "r", encoding="utf-8") as ud:
+        UserDict = json.load(ud)
     msg = arg.extract_plain_text().strip().split()
     f = open("/root/sentences/sentences/c.json", 'r', encoding="utf-8") # 将文件写入缓存
     n = []
@@ -126,22 +156,115 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
     for key,value in Dict.items():
         ValuePercent = f"{int(value / len(content) * 10000) / 100}"
         NewDict[key] = f"{ValuePercent}%"
-        if float(ValuePercent) <= 2.0:
+        if len(msg) >= 2:
+            with open(MainConfigPath, "r", encoding="utf-8") as mcp:
+                conf = yaml.load(mcp, Loader=yaml.FullLoader)
+            with open(CardDictPath, "r", encoding="utf-8") as cdp:
+                CustomCard = json.load(cdp)
+            if msg[0] == "稀有度":
+                if msg[1] == "调整":
+                    if len(msg) < 4:
+                        await quotations.finish("发生错误！code:10001")
+                    if isinstance(event, GroupMessageEvent):
+                        if not await LevelUser.check_level(
+                            event.user_id,
+                            event.group_id,
+                            Config.get_config("gay_quotations", "SCU_CHANGE_CARD_USER"),
+                        ):
+                            await quotations.finish(
+                                f"发生错误！code:1012{Config.get_config('gay_quotations', 'SCU_CHANGE_CARD_USER')}",
+                                at_sender=False
+                            )
+                    author = str(msg[2])
+                    for key,value in UserDict.items():
+                        if key == author:
+                            author = value
+                    CustomCard[author] = msg[3]
+                elif msg[1] == "查询":
+                    result = f'ssr：{conf["percent"]["ssr"]}% | sr：{conf["percent"]["sr"]}% | r：{conf["percent"]["r"]}%'
+                    await quotations.finish(result)
+                if isinstance(event, GroupMessageEvent):
+                    if not await LevelUser.check_level(
+                        event.user_id,
+                        event.group_id,
+                        Config.get_config("gay_quotations", "SCU_CHANGE_CARD_PERCENT"),
+                    ):
+                        await quotations.finish(
+                            f"发生错误！code:1012{Config.get_config('gay_quotations', 'SCU_CHANGE_CARD_PERCENT')}",
+                            at_sender=False
+                        )
+                if msg[1] in ["ssr", "SSR"]:
+                    conf["percent"]["ssr"] = msg[2]
+                if msg[1] in ["sr", "SR"]:
+                    conf["percent"]["sr"] = msg[2]
+                if msg[1] in ["r", "R"]:
+                    conf["percent"]["r"] = msg[2]
+                with open(MainConfigPath, "w", encoding="utf-8") as mcp:
+                    yaml.dump(conf, mcp)
+                with open(CardDictPath, "w", encoding="utf-8") as cdp:
+                    json.dump(CustomCard, cdp, ensure_ascii=False)
+                await quotations.finish("已成功调整稀有度！")
+
+        with open(MainConfigPath, "r", encoding="utf-8") as mcp:
+            conf = yaml.load(mcp, Loader=yaml.FullLoader)
+        with open(CardDictPath, "r", encoding="utf-8") as cdp:
+            CustomCard = json.load(cdp)
+        percent_ssr = conf["percent"]["ssr"]
+        percent_sr = conf["percent"]["sr"]
+        percent_r = conf["percent"]["r"]
+        if float(ValuePercent) <= float(percent_ssr):
             ssr.append(key)
-        elif float(ValuePercent) <= 10.0:
+        elif float(ValuePercent) <= float(percent_sr):
             sr.append(key)
-        elif float(ValuePercent) <= 25.0:
+        elif float(ValuePercent) <= float(percent_r):
             r.append(key)
         else:
             n.append(key)
-        if not "晨于曦Asahi" in n:
-            n.append("晨于曦Asahi")
-            if "晨于曦Asahi" in r:
-                r.remove("晨于曦Asahi")
-            elif "晨于曦Asahi" in sr:
-                sr.remove("晨于曦Asahi")
-            elif "晨于曦Asahi" in ssr:
-                ssr.remove("晨于曦Asahi")
+        for author,card_valve in CustomCard.items():
+            if card_valve in ["n", "N"]:
+                if author in n:
+                    n.remove(author)
+                if not author in n:
+                    n.append(author)
+                if author in r:
+                    r.remove(author)
+                elif author in sr:
+                    sr.remove(author)
+                elif author in ssr:
+                    ssr.remove(author)
+            elif card_valve in ["r", "R"]:
+                if author in r:
+                    r.remove(author)
+                if not author in r:
+                    r.append(author)
+                if author in n:
+                    n.remove(author)
+                elif author in sr:
+                    sr.remove(author)
+                elif author in ssr:
+                    ssr.remove(author)
+            elif card_valve in ["sr", "SR"]:
+                if author in sr:
+                    sr.remove(author)
+                if not author in sr:
+                    sr.append(author)
+                if author in r:
+                    r.remove(author)
+                elif author in n:
+                    n.remove(author)
+                elif author in ssr:
+                    ssr.remove(author)
+            elif card_valve in ["ssr", "SSR"]:
+                if author in ssr:
+                    ssr.remove(author)
+                if not author in ssr:
+                    ssr.append(author)
+                if author in r:
+                    r.remove(author)
+                elif author in sr:
+                    sr.remove(author)
+                elif author in n:
+                    n.remove(author)
         if key in n:
             n_all += int(value)
         elif key in r:
@@ -159,7 +282,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
     DrawYaml = open(MainConfigPath, 'r')
     dj = DrawYaml.read()
     DrawYaml.close()
-    MaxDrawCountLoad = yaml.load(dj)
+    MaxDrawCountLoad = yaml.load(dj, Loader=yaml.FullLoader)
 
     if len(msg) < 1:
         data = (await AsyncHttpx.get(url, timeout=5)).json()
@@ -191,6 +314,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
     elif len(msg) >= 1:
         SentenceCheck = msg[0]
         DrawRegex = re.match(r"([0-9]+抽|零抽|单抽|抽|一井|抽卡)", SentenceCheck)
+        # UpPoolRegex = re.match(r"(up|UP)池", SentenceCheck)
         if SentenceCheck in ["配置上限", "修改上限"]:
             if isinstance(event, GroupMessageEvent):
                 if not await LevelUser.check_level(
@@ -205,36 +329,31 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
             MaxDrawCountLoad[f"{event.group_id}"] = int(msg[1])
             with open(MainConfigPath,'w',encoding='utf-8') as f:
                 yaml.dump(MaxDrawCountLoad, f)
-
-            MaxCountError = 30
-            if int(msg[1]) > int(MaxCountError):
-                result = f"已成功配置抽卡上限为{msg[1]}，警告！超过 {MaxCountError} 将会使bot发送过长的消息，存在被风控的风险！"
-            else:
-                result = f"已成功配置抽卡上限为{msg[1]}"
+            result = f"已成功配置抽卡上限为{msg[1]}发"
             logger.info(
         f"(USER {event.user_id}, GROUP {event.group_id if isinstance(event, GroupMessageEvent) else 'private'}) 配置楠桐语录抽卡上限:{msg[1]}"
     )
             await quotations.send(result)
         elif SentenceCheck in ["限定", "指定"]:
             DrawAuthor = msg[1]
-            Draw = 1
+            for key,value in UserDict.items():
+                if key == DrawAuthor:
+                    DrawAuthor = value
             DrawAuthorCount = 0
-            while Draw == 1:
+            msg_list = []
+            while True:
                 data = (await AsyncHttpx.get(url, timeout=10)).json()
                 DrawAuthorCount += 1
                 if data["from_who"] == DrawAuthor:
                     break
-                elif DrawAuthorCount == 1000:
+                elif DrawAuthorCount == 500:
                     break
-            if DrawAuthorCount == 1000:
+            if DrawAuthorCount == 500:
                 result = f"抽了{DrawAuthorCount}次都没抽到，你真是个非酋"
+                await quotations.send(result)
             else:
                 result = f'〔g{data["id"]}〕 {data["hitokoto"]} | {data["from_who"]} | 抽取次数：{DrawAuthorCount}'
             await quotations.send(result)
-            logger.info(
-            f"(USER {event.user_id}, GROUP {event.group_id if isinstance(event, GroupMessageEvent) else 'private'}) 发送语录:"
-            + result
-        )
             flush = gc.collect()
             print(f"已成功清理内存：{flush}")
         elif re.match(r"(限定|指定)([0-9]+抽|零抽|单抽|抽|一井|抽卡)", SentenceCheck):
@@ -242,9 +361,10 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
                 MaxCount = MaxDrawCountLoad[f"{event.group_id}"]
             except:
                 MaxDrawCountLoad[f"{event.group_id}"] = 50
+                MaxCount = 50
                 with open(MainConfigPath,'w',encoding='utf-8') as f:
                     yaml.dump(MaxDrawCountLoad, f)
-                await quotations.finish("未配置抽卡上限，已默认配置为50发，请重新抽取！")
+                await quotations.send("未配置抽卡上限，已默认配置为50发！")
             DrawCount = SentenceCheck
             if not SentenceCheck in ["限定抽", "限定抽卡", "限定单抽"]:
                 DrawCount = str(SentenceCheck).replace("限定", "").replace("抽", "")
@@ -257,37 +377,38 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
             elif int(DrawCount) > int(MaxCount):
                 await quotations.finish(f"孩子塞不下辣，最多只能塞{MaxCount}发!")
 
-            data = []
+            msg_list = []
             MaxDrawCount = 500
             for i in range(int(DrawCount)):
-                Draw = 1
                 DrawAuthorCount = 0
                 DrawAuthor = msg[1]
-                while Draw == 1:
+                for key,value in UserDict.items():
+                    if key == DrawAuthor:
+                        DrawAuthor = value
+                while True:
                     text = (await AsyncHttpx.get(url, timeout=10)).json()
                     DrawAuthorCount += 1
                     if text["from_who"] == DrawAuthor:
                         break
                     elif DrawAuthorCount == int(MaxDrawCount):
                         break
-                result = f'〔g{text["id"]}〕 {text["hitokoto"]} | {text["from_who"]} | 抽取次数：{DrawAuthorCount}'
-                data.append(result)
+                data = {
+            "type": "node",
+            "data": {"name": "楠桐语录", "uin": f"{bot.self_id}", "content": f'〔g{text["id"]}〕 {text["hitokoto"]} | {text["from_who"]} | 抽取次数：{DrawAuthorCount}'},
+        }
+                msg_list.append(data)
 
             if DrawAuthorCount == int(MaxDrawCount):
                 result = f"抽了{MaxDrawCount * DrawCount}次都没抽到，你真是个非酋"
+                await quotations.send(result)
             else:
-                result = str(data).replace("[", "").replace("]", "").replace(", ", "\n").replace("'", "")
+                await bot.send_group_forward_msg(group_id=event.group_id, messages=msg_list)
             
-            await quotations.send(result)
-            logger.info(
-                f"(USER {event.user_id}, GROUP {event.group_id if isinstance(event, GroupMessageEvent) else 'private'}) 发送语录:"
-                + str(result)
-            )
             flush = gc.collect()
             print(f"已成功清理内存：{flush}")
 
         elif SentenceCheck in ["查询","查询语录","语录查询"]:
-            with open("custom_plugins/gay_quotations/config.yml", "r", encoding="utf-8") as f:
+            with open(MainConfigPath, "r", encoding="utf-8") as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
             if len(msg) >= 2:
                 CmdMsg = msg[1]
@@ -308,7 +429,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
                         config["show"]["cardpool"] = True
                     elif CmdMsg == "隐藏卡池":
                         config["show"]["cardpool"] = False
-                    with open("custom_plugins/gay_quotations/config.yml", "w") as f:
+                    with open(MainConfigPath, "w") as f:
                         yaml.dump(config, f)
                     await quotations.finish(f"已成功{CmdMsg}!")
             List = "\n" + str(Dict).replace("'", "").replace(", ", " | ").replace("{", "").replace("}", "")
@@ -343,7 +464,7 @@ R：{r} | {r_all}条
 SR：{sr} | {sr_all}条
 SSR：{ssr} | {ssr_all}条
 """
-            with open("custom_plugins/gay_quotations/config.yml", "r", encoding="utf-8") as f:
+            with open(MainConfigPath, "r", encoding="utf-8") as f:
                 config = yaml.load(f, Loader=yaml.FullLoader)
             if not config["show"]["card_all"]:
                 card_all = "**"
@@ -364,11 +485,11 @@ SSR：{ssr} | {ssr_all}条
 累计抽卡：{CardCount} 
 累计概率：{DrawPercent}
 统计区间：2023.07.29 15:00 - {datetime.datetime.now().strftime('%Y.%m.%d %H:%M')}"""
-            await quotations.send(result)
-            logger.info(
-        f"(USER {event.user_id}, GROUP {event.group_id if isinstance(event, GroupMessageEvent) else 'private'}) 发送语录查询:"
-        + result
-    )
+            data = {
+            "type": "node",
+            "data": {"name": "楠桐语录", "uin": f"{bot.self_id}", "content": result},
+        }
+            await bot.send_group_forward_msg(group_id=event.group_id, messages=data)
             flush = gc.collect()
             print(f"已成功清理内存：{flush}")
 
@@ -406,9 +527,10 @@ SSR：{ssr} | {ssr_all}条
                 MaxCount = MaxDrawCountLoad[f"{event.group_id}"]
             except:
                 MaxDrawCountLoad[f"{event.group_id}"] = 50
+                MaxCount = 50
                 with open(MainConfigPath,'w',encoding='utf-8') as f:
                     yaml.dump(MaxDrawCountLoad, f)
-                await quotations.finish("未配置抽卡上限，已默认配置为50发，请重新抽取！")
+                await quotations.send("未配置抽卡上限，已默认配置为50发！")
             DrawCount = SentenceCheck
             if not SentenceCheck in ["抽", "抽卡", "单抽"]:
                 DrawCount = str(SentenceCheck).replace("抽", "")
@@ -421,7 +543,7 @@ SSR：{ssr} | {ssr_all}条
             elif int(DrawCount) > int(MaxCount):
                 await quotations.finish(f"孩子塞不下辣，最多只能塞{MaxCount}发!")
 
-            data = []
+            msg_list = []
             card_n, card_r, card_sr, card_ssr = 0, 0, 0, 0
 
             for i in range(int(DrawCount)):
@@ -453,24 +575,30 @@ SSR：{ssr} | {ssr_all}条
                     card_ssr
                 if text["from_who"] not in CardPool:
                     card = ""
-                hitokoto = f'〔g{text["id"]}〕 {text["hitokoto"]} | {text["from_who"]}{card}'
-                data.append(hitokoto)
+                data = {
+            "type": "node",
+            "data": {"name": "楠桐语录", "uin": f"{bot.self_id}", "content": f'〔g{text["id"]}〕 {text["hitokoto"]} | {text["from_who"]}{card}'},
+        }
+                msg_list.append(data)
 
             with open(CardCountPath,'w',encoding='utf-8') as f:
                 json.dump(CountList, f,ensure_ascii=False)
-            result = str(data).replace("[", "").replace("]", "").replace(", ", "\n").replace("'", "") + f"\n\n汇总：N：{card_n} R：{card_r} SR：{card_sr} SSR：{card_ssr}"
-            await quotations.send(result)
-            logger.info(
-                f"(USER {event.user_id}, GROUP {event.group_id if isinstance(event, GroupMessageEvent) else 'private'}) 发送语录:"
-                + str(result)
-            )
+            result = {
+            "type": "node",
+            "data": {"name": "楠桐语录", "uin": f"{bot.self_id}", "content": f"汇总：N：{card_n} R：{card_r} SR：{card_sr} SSR：{card_ssr}"},
+        }
+            msg_list.append(result)
+            await bot.send_group_forward_msg(group_id=event.group_id, messages=msg_list)
             flush = gc.collect()
             print(f"已成功清理内存：{flush}")
+        # elif UpPoolRegex:
+        #     while True:
+        #         break
         else:
             await quotations.finish("参数有误,code:10404，请使用'帮助楠桐语录'查看帮助...")
             flush = gc.collect()
             print(f"已成功清理内存：{flush}")
     else:
-        await quotations.finish("参数有误,code:20001，请使用'帮助楠桐语录'查看帮助...")
+        await quotations.finish("参数有误,code:10001，请使用'帮助楠桐语录'查看帮助...")
         flush = gc.collect()
         print(f"已成功清理内存：{flush}")
