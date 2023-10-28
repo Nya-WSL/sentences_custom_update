@@ -3,7 +3,7 @@ Author: Nya-WSL
 Copyright © 2023 by Nya-WSL All Rights Reserved. 
 Date: 2023-08-30 00:47:09
 LastEditors: 狐日泽
-LastEditTime: 2023-10-29 04:09:25
+LastEditTime: 2023-10-29 05:08:45
 '''
 
 import os
@@ -131,16 +131,16 @@ async def _(arg: Message = CommandArg()):
         await ExtractSentnces.finish("请选择语录！")
     path = "/scu/"
     SentencesFile = ""
-    hotokoto = re.sub("语录", msg[0])
-    for key,value in HitokotoList:
-        if hotokoto == key:
-            SentencesFile = path + f'{value[path]}.json'
-        elif hotokoto == "楠桐":
+    hitokoto = re.sub("语录", "", msg[0])
+    for key,value in HitokotoList.items():
+        if hitokoto == key:
+            SentencesFile = path + f'{value["path"]}.json'
+        elif hitokoto == "楠桐":
             SentencesFile = path + "c.json"
             if len(msg) < 2:
                 await ExtractSentnces.finish("请选择作者！")
         else:
-            await RevokeSentence.finish("提取的语录不存在！")
+            await ExtractSentnces.finish("提取的语录不存在！")
     f = open(SentencesFile, 'r', encoding="utf-8") # 将语言文件写入缓存
     sf = f.read() # 读取语言
     f.close() # 关闭语言文件
@@ -164,7 +164,7 @@ async def _(arg: Message = CommandArg()):
         with open(FilePath, "w", encoding="utf-8") as f:
             json.dump(ExtractList, f, ensure_ascii=False, indent=0)
         if os.path.exists(FilePath):
-            result = f"""提取{hotokoto}语录中的{author}完成！
+            result = f"""提取{hitokoto}语录中的{author}完成！
 
 下载地址：
 https://cloud.nya-wsl.cn/pd/bot/extract_{author}_{time}.json
@@ -190,7 +190,7 @@ https://cloud.nya-wsl.cn/pd/bot/extract_{author}_{time}.json
 
 Powered by Nya-WSL-Cloud
 """
-            await ExtractSentnces.send(result)
+            await ExtractSentnces.finish(result)
         else:
             await ExtractSentnces.finish("提取语录发生错误！")
 
@@ -198,18 +198,23 @@ Powered by Nya-WSL-Cloud
 async def _():
     try:
         os.system("chmod +x custom_plugins/scu_bot/restart.sh && custom_plugins/scu_bot/restart.sh")
-        await CheckSentences.send("已重载语录！")
+        await CheckSentences.finish("已重载语录！")
     except:
-        await CheckSentences.send("重载发生错误！")
+        await CheckSentences.finish("重载发生错误！")
 
 @CheckSentences.handle()
 async def _():
-    SentencesList = "桑吉语录 羽月语录 楠桐语录 小晨语录 语录合集"
-    result = f"已收录语录：{SentencesList}"
-    await CheckSentences.send(result)
+    with open(HitokotoListPath, "r", encoding="utf-8") as hlp:
+        HitokotoList =json.load(hlp)
+    result = []
+    for key,value in HitokotoList.items():
+        result.append(key)
+    await CheckSentences.finish(str(result).replace("[", "").replace("]", "").replace('\"', "".replace(",", "")))
 
 @RestoreSentence.handle()
 async def _(event: MessageEvent, arg: Message = CommandArg()):
+    with open(HitokotoListPath, "r", encoding="utf-8") as hlp:
+        HitokotoList =json.load(hlp)
     msg = arg.extract_plain_text().strip().split()
     if isinstance(event, GroupMessageEvent):
         if not await LevelUser.check_level(
@@ -225,18 +230,14 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
         await RestoreSentence.finish("参数不完全，请使用'！帮助上传语录'查看帮助...")
     path = "/scu/"
     SentencesFile = ""
-    if msg[0] in ["桑吉","桑吉语录"]:
-        SentencesFile = path + "a.json"
-    elif msg[0] in ["羽月","羽月语录"]:
-        SentencesFile = path + "b.json"
-    elif msg[0] in ["楠桐","楠桐语录"]:
-        SentencesFile = path + "c.json"
-    elif msg[0] in ["小晨","小晨语录"]:
-        SentencesFile = path + "d.json"
-    elif msg[0] in ["语录","语录合集"]:
-        SentencesFile = path + "e.json"
-    else:
-        await RestoreSentence.finish("还原的语录不存在！")
+    hitokoto = re.sub("语录", "", msg[0])
+    for key,value in HitokotoList.items():
+        if hitokoto == key:
+            SentencesFile = path + f'{value["path"]}.json'
+        elif hitokoto == "楠桐":
+            SentencesFile = path + "c.json"
+        else:
+            await RestoreSentence.finish("还原的语录不存在！")
 
     try:
         os.system(f"cp -rf {SentencesFile} {SentencesFile}.restore.1")
@@ -255,6 +256,8 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
 
 @RevokeSentence.handle()
 async def _(event: MessageEvent, arg: Message = CommandArg()):
+    with open(HitokotoListPath, "r", encoding="utf-8") as hlp:
+        HitokotoList =json.load(hlp)
     msg = arg.extract_plain_text().strip().split()
     if isinstance(event, GroupMessageEvent):
         if not await LevelUser.check_level(
@@ -270,18 +273,14 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
         await RevokeSentence.finish("请选择语录！")
     path = "/scu/"
     SentencesFile = ""
-    if msg[0] in ["桑吉","桑吉语录"]:
-        SentencesFile = path + "a.json"
-    elif msg[0] in ["羽月","羽月语录"]:
-        SentencesFile = path + "b.json"
-    elif msg[0] in ["楠桐","楠桐语录"]:
-        SentencesFile = path + "c.json"
-    elif msg[0] in ["小晨","小晨语录"]:
-        SentencesFile = path + "d.json"
-    elif msg[0] in ["语录","语录合集"]:
-        SentencesFile = path + "e.json"
-    else:
-        await RevokeSentence.finish("撤回的语录不存在！")
+    hitokoto = re.sub("语录", "", msg[0])
+    for key,value in HitokotoList.items():
+        if hitokoto == key:
+            SentencesFile = path + f'{value["path"]}.json'
+        elif hitokoto == "楠桐":
+            SentencesFile = path + "c.json"
+        else:
+            await RevokeSentence.finish("撤回的语录不存在！")
 
     number = 1
     if len(msg) > 1:
@@ -323,8 +322,14 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
         UserDict = json.load(ud)
     with open(BlackListPath, "r", encoding="utf-8") as blp:
         BlackList = json.load(blp)
+    with open(HitokotoListPath, "r", encoding="utf-8") as hlp:
+        HitokotoList =json.load(hlp)
     msg = arg.extract_plain_text().strip().split()
-    SentenceName = msg[0]
+    SentenceName = re.sub("语录", "", msg[0])
+    hitokoto = []
+    for key,value in HitokotoList.items():
+        if SentenceName == key:
+            hitokoto.append(key)
 
     if SentenceName in ["黑名单"]:
         if msg[1] == "查询":
@@ -420,7 +425,7 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
         OriginSentence = str(get_message_text(event.reply.json()))
         strinfo = re.compile(r"\s+")
         sentence = strinfo.sub(",", OriginSentence)
-        if SentenceName in ["楠桐","语录","楠桐语录","语录合集"]:
+        if SentenceName in ["楠桐"]:
             try:
                 if len(msg) >= 2:
                     author = str(msg[1])
@@ -434,27 +439,19 @@ async def _(event: MessageEvent, arg: Message = CommandArg()):
                             author = value
             except:
                 await UploadSentence.finish("作者获取异常！")
-            # if author == "小丑竟是我自己":
-            #     author = "桑吉Sage"
-            # elif author == "冰蓝艾思博录":
-            #     author = "毕方"
 
-        if SentenceName in ["桑吉","羽月","楠桐","小晨","语录","桑吉语录","羽月语录","楠桐语录","小晨语录","语录合集"]:
-            if SentenceName in ["楠桐","楠桐语录","语录","语录合集"]:
-                if SentenceName in ["楠桐","语录"]:
-                    result = f'已成功将{author}说的{sentence}上传至{SentenceName}语录'
-                else:
-                    result = f'已成功将{author}说的{sentence}上传至{SentenceName}'
-                with open(BlackListPath, "r", encoding="utf-8") as blp:
-                    BlackList = json.load(blp)
-                if author in BlackList:
-                    result = f"{author}已被管理员封禁！"
-                    await UploadSentence.finish(result)
-            else:
-                if SentenceName in ["桑吉","羽月","小晨"]:
-                    result = f'已成功将{sentence}上传至{SentenceName}语录'
-                else:
-                    result = f'已成功将{sentence}上传至{SentenceName}'
+        if SentenceName in hitokoto or SentenceName == "楠桐":
+            if SentenceName in hitokoto:
+                for key,value in HitokotoList.items():
+                    if SentenceName == key:
+                        AuthorOrigin: dict = str(HitokotoList[key]).replace(r', "path": "[a-z]"', "")
+                        author = AuthorOrigin["author"]
+            result = f'已成功将{author}说的{sentence}上传至{SentenceName}语录'
+            with open(BlackListPath, "r", encoding="utf-8") as blp:
+                BlackList = json.load(blp)
+            if author in BlackList:
+                result = f"{author}已被管理员封禁！"
+                await UploadSentence.finish(result)
         else:
             await UploadSentence.finish("该语录不存在！")
 
